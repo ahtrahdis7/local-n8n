@@ -1,0 +1,176 @@
+{
+    "name": "Product Hunt Mobile Screener (M4 Pro Local)",
+    "nodes": [
+      {
+        "parameters": {},
+        "id": "2d865511-8b46-44e5-96b6-900381210642",
+        "name": "When clicking \"Execute Workflow\"",
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [
+          460,
+          340
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.producthunt.com/v2/api/graphql",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "contentType": "json",
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "query",
+                "value": "query {\n  posts(first: 20) {\n    edges {\n      node {\n        name\n        tagline\n        description\n        website\n        url\n        topics {\n          edges {\n            node {\n              name\n            }\n          }\n        }\n      }\n    }\n  }\n}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "8b4d1c22-64c8-45e1-92d5-111122223333",
+        "name": "Fetch PH Launches",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.1,
+        "position": [
+          680,
+          340
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "YOUR_CREDENTIAL_ID_HERE",
+            "name": "Product Hunt API"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "fieldToSplitOut": "body.data.posts.edges",
+          "options": {}
+        },
+        "id": "a1b2c3d4-e5f6-4789-8012-345678901234",
+        "name": "Split into Items",
+        "type": "n8n-nodes-base.itemLists",
+        "typeVersion": 2.1,
+        "position": [
+          900,
+          340
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://browserless:3000/content",
+          "sendBody": true,
+          "contentType": "json",
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "url",
+                "value": "= "
+              },
+              {
+                "name": "rejectRequestPattern",
+                "value": "[\".jpg\", \".jpeg\", \".png\", \".gif\", \".svg\", \".css\", \".mp4\"]"
+              },
+              {
+                "name": "gotoOptions",
+                "value": "{ \"waitUntil\": \"networkidle2\", \"timeout\": 15000 }"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "c3d4e5f6-9012-4345-6789-012345678901",
+        "name": "Scrape Website",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.1,
+        "position": [
+          1120,
+          340
+        ],
+        "notesInFlow": true,
+        "notes": "Uses local Docker Browserless"
+      },
+      {
+        "parameters": {
+          "modelId": {
+            "__rl": true,
+            "value": "llama3.1",
+            "mode": "list",
+            "cachedResultName": "llama3.1"
+          },
+          "messages": {
+            "values": [
+              {
+                "content": "=Role: Mobile Attribution Expert.\nContext: Analyze this company based on their Product Hunt launch and website text.\n\nProduct Name: {{ $('Split into Items').item.json.node.name }}\nTagline: {{ $('Split into Items').item.json.node.tagline }}\nPH Description: {{ $('Split into Items').item.json.node.description }}\nWebsite Text Snippet: {{ $json.slice(0, 2000) }}\n\nTask: Return a JSON object deciding if they are a fit for our Mobile Measurement Partner (MMP) solution.\n\nCriteria:\n1. Must have a Mobile App (iOS/Android).\n2. Must care about paid user acquisition (ads).\n\nOutput Format:\n{\n\"is_fit\": true/false,\n\"reason\": \"short explanation\",\n\"platform\": \"iOS\" or \"Android\" or \"Both\" or \"None\"\n}"
+              }
+            ]
+          },
+          "jsonOutput": true
+        },
+        "id": "e5f6a1b2-3456-4789-8012-345678901234",
+        "name": "AI Analyst (Ollama)",
+        "type": "n8n-nodes-base.aiAgent",
+        "typeVersion": 1,
+        "position": [
+          1340,
+          340
+        ],
+        "credentials": {
+          "ollamaApi": {
+            "id": "YOUR_OLLAMA_CRED_ID",
+            "name": "Local Ollama"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "When clicking \"Execute Workflow\"": {
+        "main": [
+          [
+            {
+              "node": "Fetch PH Launches",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch PH Launches": {
+        "main": [
+          [
+            {
+              "node": "Split into Items",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Split into Items": {
+        "main": [
+          [
+            {
+              "node": "Scrape Website",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Scrape Website": {
+        "main": [
+          [
+            {
+              "node": "AI Analyst (Ollama)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    }
+  }

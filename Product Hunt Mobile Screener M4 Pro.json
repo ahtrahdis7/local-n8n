@@ -1,0 +1,166 @@
+{
+  "name": "Product Hunt Mobile Screener (M4 Pro Local)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "d0896d4f-76dd-4179-8e2f-78f44fa8e5fa",
+      "name": "When clicking \"Execute Workflow\"",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.producthunt.com/v2/api/graphql",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "query {\n  posts(first: 20) {\n    edges {\n      node {\n        name\n        tagline\n        description\n        website\n        url\n        topics {\n          edges {\n            node {\n              name\n            }\n          }\n        }\n      }\n    }\n  }\n}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b82c8d21-a178-45cb-b325-246057455833",
+      "name": "Fetch PH Launches",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        224,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ddnUyuzXm7yzOuJu",
+          "name": "Header Auth account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Help me process the product to evaluate if it's a valid lead for MMP",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Role: Mobile Attribution Expert. Context: Analyze this company based on their Product Hunt launch and website text. Product Name: {{ $json.name }} \nTagline: {{ $json.tagline}} \nPH Description: {{ $json.description }}  \n\nTask: \nReturn a JSON object deciding if they are a fit for our Mobile Measurement Partner (MMP) solution.  \n\nCriteria: \n1. Must have a Mobile App (iOS/Android). \n2. Must care about paid user acquisition (ads).  \n\nOutput Format (JSON ONLY): \n{ \n  \"is_fit\": true/false, \n  \"reason\": \"short explanation\", \n  \"platform\": \"iOS\" or \"Android\" or \"Both\" or \"None\" \n}\n\nThe output must be a valid json."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        768,
+        0
+      ],
+      "id": "dc0b6f1c-0535-407b-82ae-b406fa085c25",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        768,
+        224
+      ],
+      "id": "df23201a-e83b-40a9-afd4-7999f1c4233f",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "KpKUQjeB4OYfobMU",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the full JSON response from the previous node\nconst response = items[0].json;\n\n// 1. Check if the API gave us an error instead of data\nif (!response.data || !response.data.posts) {\n  // Return a dummy item so the workflow doesn't crash, but logs the error\n  return [{\n    json: { error: \"API returned no data. Check your Product Hunt Token.\" }\n  }];\n}\n\n// 2. Extract the \"edges\" array\nconst edges = response.data.posts.edges;\n\n// 3. Flatten the structure (remove the \"node\" wrapper)\n// We map it so n8n treats each startup as a separate item\nreturn edges.map(edge => {\n  return {\n    json: edge.node,\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        0
+      ],
+      "id": "ffcf6484-c665-4d20-ae79-586c3bf0cfea",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking \"Execute Workflow\"": {
+      "main": [
+        [
+          {
+            "node": "Fetch PH Launches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch PH Launches": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "6d3c1d06-e67a-401a-a5e8-41df5bfd6e98",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "07d2af4743c030c7a9ac08bb0cc6d22317cc834c1bb58886c80d4cac694fb54b"
+  },
+  "id": "JfFn8I2bqm8ePo3m",
+  "tags": []
+}

@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - WEBHOOK_URL=http://localhost:5678/
+      # This is crucial: It tells n8n it can trust the local network`
+      - N8N_ secure_cookie=false
+    volumes:
+      - n8n_data:/home/node/.n8n
+    # This allows n8n to easily reach your Mac host
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  browserless:
+    image: browserless/chrome:latest
+    ports:
+      - "3000:3000"
+    environment:
+      # Limit concurrent sessions to save RAM for your LLM
+      - MAX_CONCURRENT_SESSIONS=3
+      - PREBOOT_CHROME=true
+      # Connection timeout in ms (30 seconds)
+      - CONNECTION_TIMEOUT=30000
+    restart: always
+
+volumes:
+  n8n_data:
